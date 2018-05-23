@@ -1,4 +1,5 @@
 # Probably exists already but rolled my own.
+# Get new versions here https://github.com/phraemer/gencache
 # Store or fetch from a cache a the result of a build of some directory tree's contents.
 # The key to the cache is a hash of the directory tree's contents.
 
@@ -10,6 +11,8 @@ parser.add_argument("--command", help="'fetch' to fetch from the cache, 'store' 
 parser.add_argument("--source", help="Path to the source code directory that generates the build.", required=True)
 parser.add_argument("--build", help="Path to the output dir of the build.", required=True)
 parser.add_argument("--cache", help="Path to the cache directory.", required=True)
+parser.add_argument("--maxcache", help="Size limit for the cache directory in GB.", nargs='?', const=1, type=int, default=25)
+parser.add_argument("--verbose", help="Verbose output.", nargs='?',  type=bool, default=False)
 args = parser.parse_args()
 
 if args.command != 'fetch' and args.command != 'store':
@@ -27,15 +30,14 @@ def exit_unless_exists_and_is_dir(p):
 
 exit_unless_exists_and_is_dir(args.source)
 exit_unless_exists_and_is_dir(args.cache)
-exit_unless_exists_and_is_dir(args.build)
 
 hasher = hashlib.md5()
 
 # Hash the contents of the directory tree
-exclude_prefixes = ('__', '.')  # exclusion prefixes
 for root, dirs, files in os.walk(args.source, topdown=True):
-    for name in files:
-        print('hashing ' + name)
+    for name in [f for f in files if not (f.startswith('.') or f.startswith('__'))]:
+        if args.verbose:
+            print('hashing ' + name)
         file_name = (os.path.join(root, name))
         with open(str(file_name), 'rb') as a_file:
             buf = a_file.read()
@@ -56,8 +58,8 @@ def get_dir_size(start_path):
 
 def shrink_cache(cache_dir):
     cache_size = get_dir_size(args.cache)
-    # Repeat until cache size is under 1GB
-    while cache_size > 1e+9:
+    # Repeat until cache size is under maxcache
+    while cache_size > (1e+9 * args.maxcache):
         # Get the dirs in the cache sorted by oldest first
         cache_dirs = sorted([(f.path, os.stat(f.path)) for f in os.scandir(cache_dir) if f.is_dir()], key=lambda dir: dir[1].st_ctime)
         # Purge the oldest
@@ -74,10 +76,11 @@ if args.command == 'fetch':
         copy_tree(cache_dir_path, args.build)
     else:
         # Nope
-        print('Not in cache:' + cache_dir_name)
+        print('Not in cache: {0}'.format(cache_dir_name))
         exit(1)
 elif args.command == 'store':
     print('Storing')
+    exit_unless_exists_and_is_dir(args.build)
     copy_tree(args.build, cache_dir_path)
     shrink_cache(args.cache)
 else:
