@@ -8,7 +8,7 @@ from distutils.dir_util import copy_tree
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--command", help="'fetch' to fetch from the cache, 'store' to store.", required=True)
-parser.add_argument("--source", help="Path to the source code directory that generates the build.", required=True)
+parser.add_argument("--source", help="Path to the source code directory (or directories) that generate the build.", nargs='+', required=True)
 parser.add_argument("--build", help="Path to the output dir of the build.", required=True)
 parser.add_argument("--cache", help="Path to the cache directory.", required=True)
 parser.add_argument("--maxcache", help="Size limit for the cache directory in GB.", nargs='?', const=1, type=int, default=25)
@@ -28,20 +28,23 @@ def exit_unless_exists_and_is_dir(p):
         print('{0} is not a directory'.format(p))
         exit(1)
 
-exit_unless_exists_and_is_dir(args.source)
 exit_unless_exists_and_is_dir(args.cache)
 
 hasher = hashlib.md5()
 
 # Hash the contents of the directory tree
-for root, dirs, files in os.walk(args.source, topdown=True):
-    for name in [f for f in files if not (f.startswith('.') or f.startswith('__'))]:
-        if args.verbose:
-            print('hashing ' + name)
-        file_name = (os.path.join(root, name))
-        with open(str(file_name), 'rb') as a_file:
-            buf = a_file.read()
-            hasher.update(buf)
+for source_dir in args.source:
+    if args.verbose:
+        print('Source dir: {0}'.format(source_dir))
+    exit_unless_exists_and_is_dir(source_dir)
+    for root, dirs, files in os.walk(source_dir, topdown=True):
+        for name in [f for f in files if not (f.startswith('.') or f.startswith('__'))]:
+            if args.verbose:
+                print('hashing: {0}'.format(name))
+            file_name = (os.path.join(root, name))
+            with open(str(file_name), 'rb') as a_file:
+                buf = a_file.read()
+                hasher.update(buf)
 
 cache_dir_name = hasher.hexdigest()
 print('Source directories hash {0}'.format(cache_dir_name))
