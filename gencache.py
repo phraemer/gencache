@@ -77,6 +77,8 @@ if args.command == 'fetch':
         # Yes, so copy the contents to the build output dir
         print('Fetching from {0} to {1}'.format(cache_dir_path, args.build))
         copy_tree(cache_dir_path, args.build)
+        # Update the modification time on the directory to make cache ejection LRU
+        os.utime(cache_dir_path)
     else:
         # Nope
         print('Not in cache: {0}'.format(cache_dir_name))
