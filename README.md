@@ -33,6 +33,6 @@ rem Store in the cache
 python gencache.py --command store --source c:\lib_repo\my_sources --build c:\lib_repo\build_output_dir --cache c:\my_cache_dir
 ```
 
-If after storing the cache exceeds the max cache size it will delete the oldest directories in the cache one at a time until the size is under the max.
+If after storing the cache exceeds the max cache size it will delete the least recently fetched directories in the cache one at a time until the size is under the max.
 
 Note you can pass multiple directories to `--source`
