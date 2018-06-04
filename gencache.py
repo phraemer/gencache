@@ -9,6 +9,7 @@ import os
 import pathlib
 import shutil
 import sys
+import uuid
 from distutils.dir_util import copy_tree
 
 parser = argparse.ArgumentParser()
@@ -63,7 +64,7 @@ cache_dir_name = hasher.hexdigest()
 print('Source directories hash {0}'.format(cache_dir_name))
 
 cache_dir_path = os.path.join(args.cache, cache_dir_name)
-
+cache_dir_tmp_path = cache_dir_path + str(uuid.uuid4())
 
 def get_dir_size(start_path):
     total_size = 0
@@ -108,9 +109,19 @@ if args.command == 'fetch':
         print('Not in cache: {0}'.format(cache_dir_name))
         exit(1)
 elif args.command == 'store':
-    print('Storing from {0} in {1}'.format(args.build, cache_dir_path))
+    # If we can't create the dest dir then another process is probably storing right now
+    try:
+        pathlib.Path(cache_dir_path).mkdir(parents=True)
+    except OSError as ex:
+        print('"{0}" is already in the cache or currently being stored.'.format(cache_dir_path))
+    print('Storing from {0} in temp dir {1}'.format(args.build, cache_dir_tmp_path))
     exit_unless_exists_and_is_dir(args.build)
-    copy_dir_tree(args.build, cache_dir_path)
+    # Copy to a temp dir
+    copy_dir_tree(args.build, cache_dir_tmp_path)
+    # Rename the temp dir to the hash name
+    # Don't know yet how to atomically replace the destination dir on Windows network shares
+    shutil.rmtree(cache_dir_path)
+    os.rename(cache_dir_tmp_path, cache_dir_path)
     shrink_cache(args.cache)
 else:
     print('Unknown command {0}'.format(args.command))
