@@ -3,11 +3,12 @@
 # Store or fetch from a cache a the result of a build of some directory tree's contents.
 # The key to the cache is a hash of the directory tree's contents.
 
+import argparse
 import hashlib
 import os
-import sys
-import argparse
+import pathlib
 import shutil
+import sys
 from distutils.dir_util import copy_tree
 
 parser = argparse.ArgumentParser()
@@ -74,6 +75,7 @@ def get_dir_size(start_path):
 
 
 def shrink_cache(cache_dir):
+    print('Shrinking cache if needed')
     cache_size = get_dir_size(args.cache)
     # Repeat until cache size is under maxcache
     while cache_size > (1e+9 * args.maxcache):
@@ -86,13 +88,19 @@ def shrink_cache(cache_dir):
         cache_size = get_dir_size(args.cache)
     print('Cache size {0}'.format(cache_size))
 
+def copy_dir_tree(src_dir, dst_dir):
+    if sys.platform == 'win32':
+        pathlib.Path(dst_dir).mkdir(parents=True, exist_ok=True)
+        os.system('xcopy /Y /I /E "{0}" "{1}"'.format(src_dir, dst_dir))
+    else:
+        copy_tree(src_dir, dst_dir.build)
 
 if args.command == 'fetch':
     # Is a directory with that hash in the cache dir?
     if os.path.isdir(cache_dir_path):
         # Yes, so copy the contents to the build output dir
         print('Fetching from {0} to {1}'.format(cache_dir_path, args.build))
-        copy_tree(cache_dir_path, args.build)
+        copy_dir_tree(cache_dir_path, args.build)
         # Update the modification time on the directory to make cache ejection LRU
         os.utime(cache_dir_path)
     else:
@@ -100,9 +108,9 @@ if args.command == 'fetch':
         print('Not in cache: {0}'.format(cache_dir_name))
         exit(1)
 elif args.command == 'store':
-    print('Storing')
+    print('Storing from {0} in {1}'.format(args.build, cache_dir_path))
     exit_unless_exists_and_is_dir(args.build)
-    copy_tree(args.build, cache_dir_path)
+    copy_dir_tree(args.build, cache_dir_path)
     shrink_cache(args.cache)
 else:
     print('Unknown command {0}'.format(args.command))
