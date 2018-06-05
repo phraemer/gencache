@@ -52,6 +52,8 @@ for source_dir in args.source:
         print('Source dir: {0}'.format(source_dir))
     exit_unless_exists_and_is_dir(source_dir)
     for root, dirs, files in os.walk(source_dir, topdown=True):
+        dirs.sort()
+        files.sort()
         for name in [f for f in files if not (f.startswith('.') or f.startswith('__'))]:
             if args.verbose:
                 print('hashing: {0}'.format(name))
